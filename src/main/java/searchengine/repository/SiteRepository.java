@@ -5,6 +5,6 @@ import org.springframework.stereotype.Repository;
 import searchengine.model.Site;
 
 @Repository
-public interface SiteRepository extends CrudRepository<Site, Long> {
+public interface SiteRepository extends CrudRepository<Site, Integer>{
 
 }

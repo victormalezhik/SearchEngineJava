@@ -7,6 +7,8 @@ import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
 import searchengine.model.Page;
 import searchengine.model.Site;
 import searchengine.model.Status;
@@ -15,9 +17,6 @@ import searchengine.repository.SiteRepository;
 
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.concurrent.RecursiveAction;
 import java.util.regex.Pattern;
 
@@ -27,16 +26,14 @@ import static java.lang.Thread.sleep;
 @Getter
 @Setter
 public class SiteIndexing extends RecursiveAction {
-
-    private Set<Page> pages = Collections.synchronizedSet(new HashSet<>());
-
-
+    @Autowired
     private final PageRepository pageRepository;
+    @Autowired
     private final SiteRepository siteRepository;
-    private final Site site;
 
+    private final Site site;
     @Override
-    protected void compute() {
+    public void compute() {
         try{
             sleep(2000);
             Connection connection = Jsoup.connect(site.getUrl()).timeout(30000);
@@ -46,28 +43,27 @@ public class SiteIndexing extends RecursiveAction {
                 String pageUrl = element.absUrl("href");
                 if(isCorrectLink(pageUrl)){
                     Indextor indextor = new Indextor(pageUrl,site);
-                    if (indextor.connectAndCreatePage() != null){
-                        pages.add(indextor.connectAndCreatePage());
+                    if (indextor.connectAndCreatePage() != null && checkDuplicatePage(indextor.connectAndCreatePage())){
+                        saveSite(indextor.connectAndCreatePage());
+                        site.setStatusTime(Timestamp.valueOf(LocalDateTime.now()));
                     }
-                }
-            });
-        }
-        catch (Exception exception){
-            exception.printStackTrace();
-        }
-        synchronized (site) {
-            pages.forEach(page -> {
-                if (checkDuplicatePage(page)) {
-                    pageRepository.save(page);
-                    site.setStatusTime(Timestamp.valueOf(LocalDateTime.now()));
-                    siteRepository.save(site);
                 }
             });
             site.setStatus(Status.INDEXED);
             siteRepository.save(site);
         }
-
+        catch (Exception exception){
+            exception.printStackTrace();
+            System.out.println(exception.getMessage());
+        }
     }
+    @Transactional
+    public void saveSite(Page page){
+        //в этих строчках возникает ошибка о которой я говорил
+        page.setSite(site);
+        pageRepository.save(page);
+    }
+
 
     private boolean checkDuplicatePage(Page page){
         return pageRepository.findByPath(page.getPath()) == null;

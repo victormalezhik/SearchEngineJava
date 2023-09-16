@@ -14,6 +14,7 @@ import searchengine.services.IndexingService;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.concurrent.ForkJoinPool;
 import java.util.logging.Logger;
 
 @Service
@@ -23,8 +24,6 @@ public class IndexingServiceImpl implements IndexingService {
     @Autowired
     private final PageRepository pageRepository;
     @Autowired
-
-
     private final SiteRepository siteRepository;
 
     Logger logger = Logger.getLogger(IndexingServiceImpl.class.getName());
@@ -33,9 +32,17 @@ public class IndexingServiceImpl implements IndexingService {
     public String getSitesList() {
         truncateTables();
         List<searchengine.config.Site> sites = sitesList.getSites();
-        sites.forEach(this::siteIndexing);
-        //ForkJoinPool pool = new ForkJoinPool();
-        //pool.submit(() -> sites.parallelStream().forEach(this::siteIndexing)).join();
+        ForkJoinPool pool = new ForkJoinPool();
+        sites.stream().parallel().forEach(this::siteIndexing);
+//        sites.stream().parallel().forEach(s -> {
+//            Site site = new Site();
+//            site.setName(s.getName());
+//            site.setUrl(s.getUrl());
+//            site.setStatus(Status.INDEXING);
+//            site.setStatusTime(Timestamp.valueOf(LocalDateTime.now()));
+//            siteRepository.save(site);
+//            pool.invoke(new SiteIndexing(pageRepository, siteRepository,site));
+//        } );
         return "1";
     }
 
