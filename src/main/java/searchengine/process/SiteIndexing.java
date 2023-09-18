@@ -6,9 +6,9 @@ import lombok.Setter;
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.transaction.annotation.Transactional;
 import searchengine.model.Page;
 import searchengine.model.Site;
 import searchengine.model.Status;
@@ -39,16 +39,16 @@ public class SiteIndexing extends RecursiveAction {
             Connection connection = Jsoup.connect(site.getUrl()).timeout(30000);
             Document document = connection.get();
             Elements elements = document.select("body").select("a");
-            elements.stream().parallel().forEach(element -> {
+            for(Element element : elements){
                 String pageUrl = element.absUrl("href");
                 if(isCorrectLink(pageUrl)){
                     Indextor indextor = new Indextor(pageUrl,site);
                     if (indextor.connectAndCreatePage() != null && checkDuplicatePage(indextor.connectAndCreatePage())){
-                        saveSite(indextor.connectAndCreatePage());
-                        site.setStatusTime(Timestamp.valueOf(LocalDateTime.now()));
+                       saveSite(indextor.connectAndCreatePage());
+                       site.setStatusTime(Timestamp.valueOf(LocalDateTime.now()));
                     }
                 }
-            });
+            }
             site.setStatus(Status.INDEXED);
             siteRepository.save(site);
         }
@@ -57,11 +57,18 @@ public class SiteIndexing extends RecursiveAction {
             System.out.println(exception.getMessage());
         }
     }
-    @Transactional
     public void saveSite(Page page){
         //в этих строчках возникает ошибка о которой я говорил
-        page.setSite(site);
-        pageRepository.save(page);
+        Site managedSite = siteRepository.findById(site.getId()).orElse(null);
+        if(managedSite != null) {
+            page.setSite(managedSite);
+            synchronized (site) {
+                pageRepository.save(page);
+            }
+        }
+        else {
+            System.out.println("Сайт равняеться нулю");
+        }
     }
 
 

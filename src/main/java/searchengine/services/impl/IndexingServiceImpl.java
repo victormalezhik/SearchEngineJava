@@ -33,16 +33,16 @@ public class IndexingServiceImpl implements IndexingService {
         truncateTables();
         List<searchengine.config.Site> sites = sitesList.getSites();
         ForkJoinPool pool = new ForkJoinPool();
-        sites.stream().parallel().forEach(this::siteIndexing);
-//        sites.stream().parallel().forEach(s -> {
-//            Site site = new Site();
-//            site.setName(s.getName());
-//            site.setUrl(s.getUrl());
-//            site.setStatus(Status.INDEXING);
-//            site.setStatusTime(Timestamp.valueOf(LocalDateTime.now()));
-//            siteRepository.save(site);
-//            pool.invoke(new SiteIndexing(pageRepository, siteRepository,site));
-//        } );
+        sites.forEach(s -> {
+            Site site = new Site();
+            site.setName(s.getName());
+            site.setUrl(s.getUrl());
+            site.setStatus(Status.INDEXING);
+            site.setStatusTime(Timestamp.valueOf(LocalDateTime.now()));
+            siteRepository.save(site);
+            SiteIndexing siteIndexing = new SiteIndexing(pageRepository,siteRepository,site);
+            pool.invoke(siteIndexing);
+        } );
         return "1";
     }
 
@@ -51,15 +51,15 @@ public class IndexingServiceImpl implements IndexingService {
         siteRepository.deleteAll();
     }
 
-    public void siteIndexing(searchengine.config.Site sitesBeforeIndexing) {
-        Site site = new Site();
-        site.setName(sitesBeforeIndexing.getName());
-        site.setUrl(sitesBeforeIndexing.getUrl());
-        site.setStatus(Status.INDEXING);
-        site.setStatusTime(Timestamp.valueOf(LocalDateTime.now()));
-        siteRepository.save(site);
-        SiteIndexing siteIndexing = new SiteIndexing(pageRepository, siteRepository,site);
-        siteIndexing.invoke();
-    }
+//    public void siteIndexing(searchengine.config.Site sitesBeforeIndexing) {
+//        Site site = new Site();
+//        site.setName(sitesBeforeIndexing.getName());
+//        site.setUrl(sitesBeforeIndexing.getUrl());
+//        site.setStatus(Status.INDEXING);
+//        site.setStatusTime(Timestamp.valueOf(LocalDateTime.now()));
+//        siteRepository.save(site);
+//        SiteIndexing siteIndexing = new SiteIndexing(pageRepository, siteRepository);
+//        siteIndexing.invoke();
+//    }
 }
 
