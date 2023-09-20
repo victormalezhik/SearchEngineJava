@@ -32,48 +32,63 @@ public class SiteIndexing extends RecursiveAction {
     private final SiteRepository siteRepository;
 
     private final Site site;
+
+    private volatile boolean indexingRunning = true;
+
+    public void stopIndexing() {
+        indexingRunning = false;
+    }
+
     @Override
-    public void compute() {
-        try{
+    protected void compute() {
+        try {
             sleep(2000);
             Connection connection = Jsoup.connect(site.getUrl()).timeout(30000);
             Document document = connection.get();
             Elements elements = document.select("body").select("a");
-            for(Element element : elements){
-                String pageUrl = element.absUrl("href");
-                if(isCorrectLink(pageUrl)){
-                    Indextor indextor = new Indextor(pageUrl,site);
-                    if (indextor.connectAndCreatePage() != null && checkDuplicatePage(indextor.connectAndCreatePage())){
-                       saveSite(indextor.connectAndCreatePage());
-                       site.setStatusTime(Timestamp.valueOf(LocalDateTime.now()));
+            indexingRunning = true;
+            for(Element element: elements) {
+                if(indexingRunning) {
+                    String pageUrl = element.absUrl("href");
+                    if (isCorrectLink(pageUrl)) {
+                        Indextor indextor = new Indextor(pageUrl, site);
+                        if (indextor.connectAndCreatePage() != null) {
+                            if (checkDuplicatePage(indextor.connectAndCreatePage())) {
+                                pageRepository.save(indextor.connectAndCreatePage());
+                                site.setStatusTime(Timestamp.valueOf(LocalDateTime.now()));
+                            }
+                        }
                     }
                 }
+                else {
+                    break;
+                }
             }
-            site.setStatus(Status.INDEXED);
+            if(indexingRunning){
+                site.setStatus(Status.INDEXED);
+            }
+            else {
+                site.setStatus(Status.FAILED);
+                site.setLastError("Индексация остановлена пользователем");
+            }
+
+            siteRepository.save(site);
+
+        } catch (Exception exception) {
+            site.setStatus(Status.FAILED);
+            site.setLastError(exception.getMessage());
             siteRepository.save(site);
         }
-        catch (Exception exception){
-            exception.printStackTrace();
-            System.out.println(exception.getMessage());
-        }
     }
-    public void saveSite(Page page){
-        //в этих строчках возникает ошибка о которой я говорил
-        Site managedSite = siteRepository.findById(site.getId()).orElse(null);
-        if(managedSite != null) {
-            page.setSite(managedSite);
-            synchronized (site) {
-                pageRepository.save(page);
-            }
-        }
-        else {
-            System.out.println("Сайт равняеться нулю");
-        }
-    }
-
 
     private boolean checkDuplicatePage(Page page){
-        return pageRepository.findByPath(page.getPath()) == null;
+        try {
+            Page copyPage = pageRepository.findByPath(page.getPath());
+            return copyPage == null;
+        }
+        catch (Exception exception){
+            return false;
+        }
     }
 
     private boolean isCorrectLink(String link) {

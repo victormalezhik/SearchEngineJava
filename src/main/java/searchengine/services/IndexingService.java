@@ -1,5 +1,9 @@
 package searchengine.services;
 
+import java.util.Map;
+
 public interface IndexingService {
-    String getSitesList();
+    Map<String, Object> siteAndPageIndexing();
+
+    Map<String, Object> stopIndexing();
 }

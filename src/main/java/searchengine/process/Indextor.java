@@ -31,13 +31,17 @@ public class Indextor {
             Document doc = connection.get();
             Page page = new Page();
             if (site.getUrl().contains("www.") && !pageUrl.contains("www.")) {
-                page.setPath(pageUrl.replace(site.getUrl().replace("www.",""), ""));
+                String path = pageUrl.replace(site.getUrl().replace("www.",""), "");
+                if(!path.isBlank()) {
+                    page.setPath(path);
+                }
             }
             else {
                 page.setPath(pageUrl.replace(site.getUrl(), ""));
             }
             page.setCode(connection.response().statusCode());
             page.setContent(doc.html());
+            page.setSite(site);
             return page;
         }
         catch (HttpStatusException | InterruptedException exception){

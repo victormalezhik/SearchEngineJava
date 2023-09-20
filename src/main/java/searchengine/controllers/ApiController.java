@@ -8,6 +8,8 @@ import searchengine.dto.statistics.StatisticsResponse;
 import searchengine.services.IndexingService;
 import searchengine.services.StatisticsService;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api")
 public class ApiController {
@@ -26,7 +28,17 @@ public class ApiController {
     }
 
     @GetMapping("/startIndexing")
-    public void startIndexing() {
-        System.out.println(indexingService.getSitesList());
+    public ResponseEntity<Map<String, Object>> startIndexing() {
+        if (indexingService.siteAndPageIndexing().containsValue(true)) {
+            return ResponseEntity.ok(indexingService.siteAndPageIndexing());
+        }
+        return ResponseEntity.badRequest().body(indexingService.siteAndPageIndexing());
+    }
+    @GetMapping("/stopIndexing")
+    public ResponseEntity<Map<String, Object>> stopIndexing(){
+        if (indexingService.stopIndexing().containsValue(true)) {
+            return ResponseEntity.ok(indexingService.stopIndexing());
+        }
+        return ResponseEntity.badRequest().body(indexingService.stopIndexing());
     }
 }
