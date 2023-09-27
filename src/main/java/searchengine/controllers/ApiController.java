@@ -1,10 +1,9 @@
 package searchengine.controllers;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import searchengine.dto.statistics.StatisticsResponse;
+import searchengine.services.IndexPageService;
 import searchengine.services.IndexingService;
 import searchengine.services.StatisticsService;
 
@@ -17,9 +16,12 @@ public class ApiController {
     private final StatisticsService statisticsService;
     private final IndexingService indexingService;
 
-    public ApiController(StatisticsService statisticsService, IndexingService indexingService) {
+    private final IndexPageService indexPageService;
+
+    public ApiController(StatisticsService statisticsService, IndexingService indexingService, IndexPageService indexPageService) {
         this.statisticsService = statisticsService;
         this.indexingService = indexingService;
+        this.indexPageService = indexPageService;
     }
 
     @GetMapping("/statistics")
@@ -40,5 +42,13 @@ public class ApiController {
             return ResponseEntity.ok(indexingService.stopIndexing());
         }
         return ResponseEntity.badRequest().body(indexingService.stopIndexing());
+    }
+
+    @PostMapping("/indexPage/{url}")
+    public ResponseEntity<Map<String, Object>> indexPage(@PathVariable String url) {
+        if (indexPageService.indexingPage().containsValue(true)) {
+            return ResponseEntity.ok(indexPageService.indexingPage());
+        }
+        return ResponseEntity.badRequest().body(indexPageService.indexingPage());
     }
 }

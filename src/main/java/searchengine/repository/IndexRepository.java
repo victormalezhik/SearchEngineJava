@@ -2,10 +2,7 @@ package searchengine.repository;
 
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
-import searchengine.model.Page;
-
+import searchengine.model.Index;
 @Repository
-public interface PageRepository extends CrudRepository <Page, Integer> {
-    Page findByPath(String path);
-
+public interface IndexRepository extends CrudRepository<Index, Integer> {
 }
