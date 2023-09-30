@@ -18,10 +18,6 @@ public class LemmasFromText {
         this.luceneMorphology = luceneMorphology;
     }
 
-    private LemmasFromText(){
-        throw new RuntimeException("Incorrect construct");
-    }
-
     public Map<String,Integer> collectLemmas(String text){
         String clearedText = clearTextFromHtml(text);
 
@@ -55,24 +51,8 @@ public class LemmasFromText {
     }
 
     public String clearTextFromHtml(String text){
-       return  Jsoup.parse(text).text();
+       return Jsoup.parse(text).text();
     }
-
-//    public Set<String> getLemmasSet(String text){
-//        String[] textArray = arrayContainsRussianWords(text);
-//        Set<String> lemmasSet = new HashSet<>();
-//        for(String word : textArray){
-//            if(!word.isEmpty() && isCorrectWordForm(word)){
-//                List<String> wordBaseForms = luceneMorphology.getMorphInfo(word);
-//                if (wordBaseFormIsParticle(wordBaseForms)){
-//                    continue;
-//                }
-//                lemmasSet.addAll(luceneMorphology.getNormalForms(word));
-//            }
-//        }
-//        System.out.println(lemmasSet.toString());
-//        return lemmasSet;
-//    }
 
     private String[] arrayContainsRussianWords(String text){
         return text.toLowerCase(Locale.ROOT).
@@ -92,15 +72,5 @@ public class LemmasFromText {
             }
         }
         return false;
-    }
-
-    private boolean isCorrectWordForm(String word){
-        List<String> wordInfo = luceneMorphology.getMorphInfo(word);
-        for (String morphInfo : wordInfo){
-            if(morphInfo.matches(WORD_TYPE_REGEX)){
-                return false;
-            }
-        }
-        return true;
     }
 }

@@ -7,6 +7,8 @@ import searchengine.config.SitesList;
 import searchengine.model.Site;
 import searchengine.model.Status;
 import searchengine.process.SiteIndexing;
+import searchengine.repository.IndexRepository;
+import searchengine.repository.LemmaRepository;
 import searchengine.repository.PageRepository;
 import searchengine.repository.SiteRepository;
 import searchengine.services.IndexingService;
@@ -27,6 +29,10 @@ public class IndexingServiceImpl implements IndexingService {
     private final PageRepository pageRepository;
     @Autowired
     private final SiteRepository siteRepository;
+    @Autowired
+    private final LemmaRepository lemmaRepository;
+    @Autowired
+    private final IndexRepository indexRepository;
     private static boolean indexingOn;
     private List<SiteIndexing> siteIndexingsList = new CopyOnWriteArrayList<>();
 
@@ -47,7 +53,7 @@ public class IndexingServiceImpl implements IndexingService {
                 site.setStatus(Status.INDEXING);
                 site.setStatusTime(Timestamp.valueOf(LocalDateTime.now()));
                 siteRepository.save(site);
-                SiteIndexing siteIndexing = new SiteIndexing(pageRepository, siteRepository, site);
+                SiteIndexing siteIndexing = new SiteIndexing(pageRepository, siteRepository, lemmaRepository,indexRepository,site);
                 siteIndexingsList.add(siteIndexing);
                 pool.invoke(siteIndexing);
             });
@@ -64,7 +70,9 @@ public class IndexingServiceImpl implements IndexingService {
     }
 
     public void truncateTables() {
+        indexRepository.deleteAll();
         pageRepository.deleteAll();
+        lemmaRepository.deleteAll();
         siteRepository.deleteAll();
     }
     @Override

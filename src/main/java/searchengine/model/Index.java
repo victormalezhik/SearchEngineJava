@@ -16,12 +16,12 @@ public class Index {
     @Column(nullable = false)
     private int id;
 
-    @ManyToOne(targetEntity = Page.class, cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    @JoinColumn(name = "page_id")
+    @ManyToOne(targetEntity = Page.class, cascade = CascadeType.MERGE, fetch = FetchType.LAZY)
+    @JoinColumn(name = "page_id", nullable = false)
     private Page page;
 
     @ManyToOne(targetEntity = Lemma.class, cascade = CascadeType.MERGE, fetch = FetchType.LAZY)
-    @JoinColumn(name = "lemma_id")
+    @JoinColumn(name = "lemma_id",nullable = false)
     private Lemma lemma;
 
     @Column(nullable = false, name = "rank_value")
