@@ -9,4 +9,6 @@ import java.util.List;
 @Repository
 public interface LemmaRepository extends CrudRepository<Lemma, Integer> {
     List<Lemma> findAllByLemma(String lemma);
+
+    List<Lemma> findAllBySiteId(Integer siteId);
 }
