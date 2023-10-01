@@ -12,8 +12,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import searchengine.model.Page;
 import searchengine.model.Site;
 import searchengine.model.Status;
+import searchengine.repository.IndexRepository;
+import searchengine.repository.LemmaRepository;
 import searchengine.repository.PageRepository;
 import searchengine.repository.SiteRepository;
+import searchengine.services.impl.IndexingPageServiceImpl;
 
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
@@ -25,11 +28,15 @@ import static java.lang.Thread.sleep;
 @RequiredArgsConstructor
 @Getter
 @Setter
-public class SiteIndexing extends RecursiveAction {
+public class SiteIndexing extends RecursiveAction{
     @Autowired
     private final PageRepository pageRepository;
     @Autowired
     private final SiteRepository siteRepository;
+    @Autowired
+    private final LemmaRepository lemmaRepository;
+    @Autowired
+    private final IndexRepository indexRepository;
 
     private final Site site;
 
@@ -47,27 +54,27 @@ public class SiteIndexing extends RecursiveAction {
             Document document = connection.get();
             Elements elements = document.select("body").select("a");
             indexingRunning = true;
-            for(Element element: elements) {
-                if(indexingRunning) {
+            for (Element element : elements) {
+                if (indexingRunning) {
                     String pageUrl = element.absUrl("href");
                     if (isCorrectLink(pageUrl)) {
                         Indextor indextor = new Indextor(pageUrl, site);
-                        if (indextor.connectAndCreatePage() != null) {
-                            if (checkDuplicatePage(indextor.connectAndCreatePage())) {
-                                pageRepository.save(indextor.connectAndCreatePage());
+                        Page newPage = indextor.connectAndCreatePage();
+                        if (newPage != null) {
+                            if (checkDuplicatePage(newPage)) {
+                                pageRepository.save(newPage);
+                                new IndexingPageServiceImpl(siteRepository,pageRepository,lemmaRepository,indexRepository).indexingPages(pageUrl);
                                 site.setStatusTime(Timestamp.valueOf(LocalDateTime.now()));
                             }
                         }
                     }
-                }
-                else {
+                } else {
                     break;
                 }
             }
-            if(indexingRunning){
+            if (indexingRunning) {
                 site.setStatus(Status.INDEXED);
-            }
-            else {
+            } else {
                 site.setStatus(Status.FAILED);
                 site.setLastError("Индексация остановлена пользователем");
             }
@@ -80,13 +87,11 @@ public class SiteIndexing extends RecursiveAction {
             siteRepository.save(site);
         }
     }
-
-    private boolean checkDuplicatePage(Page page){
+    private boolean checkDuplicatePage(Page page) {
         try {
             Page copyPage = pageRepository.findByPath(page.getPath());
             return copyPage == null;
-        }
-        catch (Exception exception){
+        } catch (Exception exception) {
             return false;
         }
     }
@@ -94,10 +99,10 @@ public class SiteIndexing extends RecursiveAction {
     private boolean isCorrectLink(String link) {
         Pattern patternFileLink = Pattern.compile("([^\\s]+(\\.(?i)(jpg|png|gif|bmp|pdf))$)");
         Pattern patternAnchor = Pattern.compile("#([\\w\\-]+)?$");
-        if(!link.contains("www.") && site.getUrl().contains("www.")){
+        if (!link.contains("www.") && site.getUrl().contains("www.")) {
             return !patternFileLink.matcher(link).find() &&
                     !patternAnchor.matcher(link).find() &&
-                    link.contains(site.getUrl().replace("www.",""));
+                    link.contains(site.getUrl().replace("www.", ""));
         }
         return !patternFileLink.matcher(link).find() &&
                 !patternAnchor.matcher(link).find() &&

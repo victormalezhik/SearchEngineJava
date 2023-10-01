@@ -7,13 +7,10 @@ import org.jsoup.Connection;
 import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
-import org.springframework.beans.factory.annotation.Autowired;
 import searchengine.model.Page;
 import searchengine.model.Site;
-import searchengine.repository.SiteRepository;
 
 import java.io.IOException;
-import java.util.Optional;
 
 import static java.lang.Thread.sleep;
 
@@ -30,15 +27,7 @@ public class Indextor {
             Connection connection = Jsoup.connect(pageUrl).timeout(30000);
             Document doc = connection.get();
             Page page = new Page();
-            if (site.getUrl().contains("www.") && !pageUrl.contains("www.")) {
-                String path = pageUrl.replace(site.getUrl().replace("www.",""), "");
-                if(!path.isBlank()) {
-                    page.setPath(path);
-                }
-            }
-            else {
-                page.setPath(pageUrl.replace(site.getUrl(), ""));
-            }
+            page.setPath(pathMaker());
             page.setCode(connection.response().statusCode());
             page.setContent(doc.html());
             page.setSite(site);
@@ -48,6 +37,22 @@ public class Indextor {
             return null;
         } catch (IOException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    private String pathMaker(){
+        if (site.getUrl().contains("www.") && !pageUrl.contains("www.")) {
+            return pageUrl.replace(site.getUrl().replace("www.",""), "");
+        } else if (site.getUrl().contains("www.") && pageUrl.contains("www.")) {
+            String path = pageUrl.replace(site.getUrl(), "");
+            if (path.isBlank()){
+                return "/";
+            }
+            else {
+                return path;
+            }
+        } else {
+            return pageUrl.replace(site.getUrl(), "");
         }
     }
 }
