@@ -9,4 +9,7 @@ import java.util.List;
 @Repository
 public interface IndexRepository extends CrudRepository<Index, Integer> {
     List<Index> findByPageId(Integer pageId);
+    List<Index> findByLemmaId(Integer lemmaId);
+
+    Index findByPageIdAndLemmaId(Integer pageId, Integer lemmaId);
 }
