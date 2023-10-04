@@ -5,6 +5,7 @@ The search engine should be a Spring application (JAR file that runs on any serv
 ## Start of the work
 
 You can clone the project by pasting this link into your IDE
+
 https://github.com/victormalezhik/MyFinalTrialProject.git
 
 ## Description 
