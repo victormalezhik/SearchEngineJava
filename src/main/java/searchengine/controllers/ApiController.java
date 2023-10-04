@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.*;
 import searchengine.dto.statistics.StatisticsResponse;
 import searchengine.services.IndexPageService;
 import searchengine.services.IndexingService;
+import searchengine.services.SearchService;
 import searchengine.services.StatisticsService;
 
 import java.util.Map;
@@ -20,10 +21,13 @@ public class ApiController {
 
     private final IndexPageService indexPageService;
 
-    public ApiController(StatisticsService statisticsService, IndexingService indexingService, IndexPageService indexPageService) {
+    private final SearchService searchService;
+
+    public ApiController(StatisticsService statisticsService, IndexingService indexingService, IndexPageService indexPageService, SearchService searchService) {
         this.statisticsService = statisticsService;
         this.indexingService = indexingService;
         this.indexPageService = indexPageService;
+        this.searchService = searchService;
     }
 
     @GetMapping("/statistics")
@@ -52,6 +56,15 @@ public class ApiController {
     @PostMapping("/indexPage")
     public ResponseEntity<Map<String, Object>> indexPage(@RequestBody String url) {
         Map<String,Object> result = indexPageService.indexingPage(url);
+        if (result.containsValue(true)) {
+            return ResponseEntity.ok(result);
+        }
+        return ResponseEntity.badRequest().body(result);
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<Map<String, Object>> search(@RequestParam(required = false, defaultValue = "") String query, @RequestParam(required = false, defaultValue = "") String site) {
+        Map<String,Object> result = searchService.searchByQuery(query,site);
         if (result.containsValue(true)) {
             return ResponseEntity.ok(result);
         }

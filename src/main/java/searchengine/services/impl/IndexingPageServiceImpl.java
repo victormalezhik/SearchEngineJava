@@ -42,6 +42,7 @@ public class IndexingPageServiceImpl implements IndexPageService{
     @Override
     public Map<String, Object> indexingPage(String url) {
         String decodedUrl = urlDecoding(url);
+
         if(!decodedUrl.isBlank()) {
             if (isCorrectLink(decodedUrl) && isUrlFromExistedSite(decodedUrl)) {
                 checkPageOnIndexing(decodedUrl);
@@ -69,6 +70,7 @@ public class IndexingPageServiceImpl implements IndexPageService{
 
     public void indexingPages(String url) {
         String decodedUrl = urlDecoding(url);
+
         if(!decodedUrl.isBlank()) {
             if (isCorrectLink(decodedUrl) && isUrlFromExistedSite(decodedUrl)) {
                 saveLemmasFromPage(decodedUrl);
@@ -78,6 +80,7 @@ public class IndexingPageServiceImpl implements IndexPageService{
 
     private String urlDecoding(String url){
         String decodedUrl = "";
+
         try {
             decodedUrl = URLDecoder.decode(url, StandardCharsets.UTF_8).replace("url=","");
             return decodedUrl;
@@ -91,6 +94,7 @@ public class IndexingPageServiceImpl implements IndexPageService{
     private boolean isUrlFromExistedSite(String url){
         List<Site> listSites = new ArrayList<>();
         siteRepository.findAll().forEach(listSites::add);
+
         for(Site siteFromDb: listSites){
             if(!url.contains("www.") && siteFromDb.getUrl().contains("www.")){
                 if(url.contains(siteFromDb.getUrl().replace("www.",""))) {
@@ -138,11 +142,13 @@ public class IndexingPageServiceImpl implements IndexPageService{
                     lemmaRepository.save(lemma);
                     indexRepository.save(index);
                 }
+
                 if(lemmaList.size() == 1) {
                     Lemma existdedLemma = lemmaList.get(0);
                     existdedLemma.setFrequency(existdedLemma.getFrequency() + 1);
                     lemmaRepository.save(existdedLemma);
                 }
+
                 if(lemmaList.size() >1){
                     lemmaList.forEach( l -> {
                         if(l.getSite() == site){
@@ -156,12 +162,13 @@ public class IndexingPageServiceImpl implements IndexPageService{
 
         }
         catch (Exception exception){
-            System.out.println(exception.getMessage());
+            exception.printStackTrace();
         }
     }
 
     private void checkPageOnIndexing(String url){
         Page existedPage = pageRepository.findByPath(urlFormatter(url));
+
         if(existedPage == null){
             Indextor indextor = new Indextor(url, site);
             page = indextor.connectAndCreatePage();

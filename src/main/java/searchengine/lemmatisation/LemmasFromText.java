@@ -50,7 +50,28 @@ public class LemmasFromText {
         return lemmasMap;
     }
 
-    public String clearTextFromHtml(String text){
+    public Set<String> getLemmasSet(String text){
+        String[] words = arrayContainsRussianWords(text);
+        Set<String> lemmasFromQuery = new HashSet<>();
+        for(String word : words){
+            if (word.isBlank()){
+                continue;
+            }
+            List<String> wordBaseForms =  luceneMorphology.getMorphInfo(word);
+            if(wordBaseFormIsParticle(wordBaseForms)){
+                continue;
+            }
+            List<String> normalForm = luceneMorphology.getNormalForms(word);
+            if (normalForm.isEmpty()){
+                continue;
+            }
+            String normalWord = normalForm.get(0);
+            lemmasFromQuery.add(normalWord);
+        }
+        return lemmasFromQuery;
+    }
+
+    private String clearTextFromHtml(String text){
        return Jsoup.parse(text).text();
     }
 
