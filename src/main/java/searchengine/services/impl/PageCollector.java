@@ -1,4 +1,4 @@
-package searchengine.process;
+package searchengine.services.impl;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +17,7 @@ import static java.lang.Thread.sleep;
 @RequiredArgsConstructor
 @Getter
 @Setter
-public class Indextor {
+public class PageCollector {
     private final String pageUrl;
     private final Site site;
 
@@ -25,6 +25,15 @@ public class Indextor {
         try {
             sleep(1000);
             Connection connection = Jsoup.connect(pageUrl).timeout(30000);
+            return createNewPage(connection);
+        }
+        catch (InterruptedException exception){
+            return null;
+        }
+    }
+
+    private Page createNewPage(Connection connection){
+        try {
             Document doc = connection.get();
             Page page = new Page();
             page.setPath(pathMaker());
@@ -33,7 +42,7 @@ public class Indextor {
             page.setSite(site);
             return page;
         }
-        catch (HttpStatusException | InterruptedException exception){
+        catch (HttpStatusException exception){
             return null;
         } catch (IOException e) {
             throw new RuntimeException(e);

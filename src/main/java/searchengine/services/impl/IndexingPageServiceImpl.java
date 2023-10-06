@@ -10,7 +10,6 @@ import searchengine.model.Index;
 import searchengine.model.Lemma;
 import searchengine.model.Page;
 import searchengine.model.Site;
-import searchengine.process.Indextor;
 import searchengine.repository.IndexRepository;
 import searchengine.repository.LemmaRepository;
 import searchengine.repository.PageRepository;
@@ -51,20 +50,12 @@ public class IndexingPageServiceImpl implements IndexPageService{
                 responseMap.put("result", true);
                 return responseMap;
             } else {
-                Map<String, Object> errorMap = new HashMap<>();
-                errorMap.put("result", false);
-                errorMap.put("error", """
-                        "Данная страница находится за пределами сайтов,\s
-                        указанных в конфигурационном файле"
-                        """);
-                return errorMap;
+               return getErrorResponse("Данная страница находится " +
+                        "за пределами сайтов указанных в конфигурационном файле");
             }
         }
         else {
-            Map<String, Object> errorMap = new HashMap<>();
-            errorMap.put("result", false);
-            errorMap.put("error", "Неправильная ссылка или она пуста");
-            return errorMap;
+            return getErrorResponse("Неправильная ссылка или она пуста");
         }
     }
 
@@ -129,49 +120,52 @@ public class IndexingPageServiceImpl implements IndexPageService{
                 List<Lemma> lemmaList = lemmaRepository.findAllByLemma(lem);
 
                 if(lemmaList.isEmpty()) {
-                    Lemma lemma = new Lemma();
-                    lemma.setSite(site);
-                    lemma.setLemma(lem);
-                    lemma.setFrequency(1);
-
-                    Index index = new Index();
-                    index.setLemma(lemma);
-                    index.setPage(page);
-                    index.setRank(amountOnPage);
-
-                    lemmaRepository.save(lemma);
-                    indexRepository.save(index);
+                    setLemmaAndIndexFromLemmasMap(lem,amountOnPage);
                 }
-
-                if(lemmaList.size() == 1) {
-                    Lemma existdedLemma = lemmaList.get(0);
-                    existdedLemma.setFrequency(existdedLemma.getFrequency() + 1);
-                    lemmaRepository.save(existdedLemma);
+                else if(lemmaList.size() == 1) {
+                    updateExistedLemma(lemmaList);
                 }
-
-                if(lemmaList.size() >1){
+                else {
                     lemmaList.forEach( l -> {
                         if(l.getSite() == site){
-                            Lemma existdedLemma = lemmaList.get(0);
-                            existdedLemma.setFrequency(existdedLemma.getFrequency() + 1);
-                            lemmaRepository.save(existdedLemma);
+                            updateExistedLemma(lemmaList);
                         }
                     });
                 }
             });
-
         }
         catch (Exception exception){
             exception.printStackTrace();
         }
     }
 
+    private void setLemmaAndIndexFromLemmasMap(String lem, int amountOnPage){
+        Lemma lemma = new Lemma();
+        lemma.setSite(site);
+        lemma.setLemma(lem);
+        lemma.setFrequency(1);
+
+        Index index = new Index();
+        index.setLemma(lemma);
+        index.setPage(page);
+        index.setRank(amountOnPage);
+
+        lemmaRepository.save(lemma);
+        indexRepository.save(index);
+    }
+
+    private void updateExistedLemma(List<Lemma> lemmaList){
+        Lemma existdedLemma = lemmaList.get(0);
+        existdedLemma.setFrequency(existdedLemma.getFrequency() + 1);
+        lemmaRepository.save(existdedLemma);
+    }
+
     private void checkPageOnIndexing(String url){
         Page existedPage = pageRepository.findByPath(urlFormatter(url));
 
         if(existedPage == null){
-            Indextor indextor = new Indextor(url, site);
-            page = indextor.connectAndCreatePage();
+            PageCollector pageCollector = new PageCollector(url, site);
+            page = pageCollector.connectAndCreatePage();
             pageRepository.save(page);
         }else {
             Integer existedPageId = existedPage.getId();
@@ -199,5 +193,12 @@ public class IndexingPageServiceImpl implements IndexPageService{
         } else {
             return url.replace(site.getUrl(), "");
         }
+    }
+
+    private Map<String, Object> getErrorResponse(String errorMessage){
+        Map<String, Object> errorMap = new HashMap<>();
+        errorMap.put("result", false);
+        errorMap.put("error", errorMessage);
+        return errorMap;
     }
 }

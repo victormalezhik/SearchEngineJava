@@ -34,10 +34,7 @@ public class SearchServiceImpl implements SearchService {
     @Override
     public Map<String, Object> searchByQuery(String query,String siteUrl) {
         if(query.isBlank()){
-            Map<String, Object> errorMap = new HashMap<>();
-            errorMap.put("result", false);
-            errorMap.put("error", "Задан пустой поисковый запрос");
-            return errorMap;
+            return generateErrorResponse("Задан пустой поисковый запрос");
         }
         site = siteRepository.findByUrl(siteUrl);
 
@@ -48,28 +45,16 @@ public class SearchServiceImpl implements SearchService {
             }
 
             List<Lemma> sortedLemmasList = sortLemmas(lemmasSetFromQuery);
-
             List<Page> pagesForCountRelev = findPagesForEveryLemma(sortedLemmasList);
-
             if (pagesForCountRelev.isEmpty()) {
                 throw new RuntimeException();
             }
 
             Map<Page,Float> pagesWithRelev = getRelevForPages(pagesForCountRelev,sortedLemmasList);
-
-            List<SearchResponse> result = getResponseAfterSearch(pagesWithRelev,sortedLemmasList);
-            Map<String, Object> responseMap = new HashMap<>();
-            responseMap.put("result", true);
-            responseMap.put("count", result.size());
-            responseMap.put("data", result);
-            return responseMap;
+            return generateSuccessResponse(getResponseAfterSearch(pagesWithRelev,sortedLemmasList));
         }
         catch (Exception exception) {
-            System.out.println(exception.getMessage());
-            Map<String, Object> errorMap = new HashMap<>();
-            errorMap.put("result", false);
-            errorMap.put("error", "Указанная страница не найдена");
-            return errorMap;
+            return generateErrorResponse("Указанная страница не найдена");
         }
     }
 
@@ -77,29 +62,37 @@ public class SearchServiceImpl implements SearchService {
         try{
             LuceneMorphology luceneMorphology = new RussianLuceneMorphology();
             LemmasFromText lemmasFromText = new LemmasFromText(luceneMorphology);
+
             Set<String> lemmasSetFromQuery = lemmasFromText.getLemmasSet(query);
-            Set<Lemma> uniqueLemmasFromQuery = new HashSet<>();
-            lemmasSetFromQuery.forEach( lemma -> {
-                List<Lemma> resultFromSearchOfLemma = lemmaRepository.findAllByLemma(lemma);
-                if(!resultFromSearchOfLemma.isEmpty()){
-                    if(site == null) {
-                        uniqueLemmasFromQuery.addAll(resultFromSearchOfLemma);
-                    }
-                    else {
-                        resultFromSearchOfLemma.forEach(lemma1 -> {
-                            if(lemma1.getSite() == site){
-                                uniqueLemmasFromQuery.add(lemma1);
-                            }
-                        });
-                    }
-                }
-            });
-            return uniqueLemmasFromQuery;
+
+            return getUniqueLemmasFromQuery(lemmasSetFromQuery);
         }
         catch (Exception exception){
             exception.printStackTrace();
             return null;
         }
+    }
+
+    private Set<Lemma> getUniqueLemmasFromQuery(Set<String> lemmasSetFromQuery){
+        Set<Lemma> uniqueLemmasFromQuery = new HashSet<>();
+
+        lemmasSetFromQuery.forEach( lemma -> {
+            List<Lemma> resultFromSearchOfLemma = lemmaRepository.findAllByLemma(lemma);
+            if(!resultFromSearchOfLemma.isEmpty()){
+                if(site == null) {
+                    uniqueLemmasFromQuery.addAll(resultFromSearchOfLemma);
+                }
+                else {
+                    resultFromSearchOfLemma.forEach(lemma1 -> {
+                        if(lemma1.getSite() == site){
+                            uniqueLemmasFromQuery.add(lemma1);
+                        }
+                    });
+                }
+            }
+        });
+
+        return uniqueLemmasFromQuery;
     }
 
     private Set<Lemma> clearOutFromMostFrequentLemmas(Set<Lemma> lemmas){
@@ -125,18 +118,7 @@ public class SearchServiceImpl implements SearchService {
         List<Index> indexesForFirstLemma = indexRepository.findByLemmaId(lemmas.get(0).getId());
         lemmas.remove(0);
 
-        List<Page> pagesForLemmas = new ArrayList<>();
-        indexesForFirstLemma.forEach(index -> {
-            if (site == null) {
-                pagesForLemmas.add(index.getPage());
-            }
-            else {
-                Page pageFromIndex = index.getPage();
-                if(pageFromIndex.getSite() == site){
-                    pagesForLemmas.add(pageFromIndex);
-                }
-            }
-        });
+        List<Page> pagesForLemmas = findPageForFirstLemma(indexesForFirstLemma);
 
         Iterator<Page> iterator = pagesForLemmas.iterator();
         while (iterator.hasNext()) {
@@ -158,6 +140,24 @@ public class SearchServiceImpl implements SearchService {
 
         return pagesForLemmas;
     }
+
+    private List<Page> findPageForFirstLemma(List<Index> indexesForFirstLemma){
+        List<Page> pagesForLemmas = new ArrayList<>();
+        indexesForFirstLemma.forEach(index -> {
+            if (site == null) {
+                pagesForLemmas.add(index.getPage());
+            }
+            else {
+                Page pageFromIndex = index.getPage();
+                if(pageFromIndex.getSite() == site){
+                    pagesForLemmas.add(pageFromIndex);
+                }
+            }
+        });
+        return pagesForLemmas;
+    }
+
+
 
     private Map<Page,Float> getRelevForPages(List<Page> pages, List<Lemma> lemmaList){
         Map<Page,Float> pagesWithAbsRelev = new HashMap<>();
@@ -208,23 +208,28 @@ public class SearchServiceImpl implements SearchService {
         List<SearchResponse> listOfResponses = new ArrayList<>();
         pagesWithRelev.forEach((page, relev) -> {
             lemmaList.forEach(lemma -> {
-                SearchResponse searchResponse = new SearchResponse();
-                searchResponse.setRelevance(relev);
-                if(site == null) {
-                    searchResponse.setSite("All sites");
-                    searchResponse.setSiteName("");
-                }
-                else {
-                    searchResponse.setSite(site.getUrl());
-                    searchResponse.setSiteName(site.getName());
-                }
-                searchResponse.setUri(page.getPath());
-                searchResponse.setTitle(Jsoup.parse(page.getContent()).title());
-                searchResponse.setSnippet(generateSnippet(page.getContent(), lemma.getLemma()));
+                SearchResponse searchResponse = getSearchResponse(page,relev,lemma);
                 listOfResponses.add(searchResponse);
             });
         });
         return listOfResponses;
+    }
+
+    private SearchResponse getSearchResponse(Page page, Float relev, Lemma lemma){
+        SearchResponse searchResponse = new SearchResponse();
+        searchResponse.setRelevance(relev);
+        if(site == null) {
+            searchResponse.setSite("All sites");
+            searchResponse.setSiteName("");
+        }
+        else {
+            searchResponse.setSite(site.getUrl());
+            searchResponse.setSiteName(site.getName());
+        }
+        searchResponse.setUri(page.getPath());
+        searchResponse.setTitle(Jsoup.parse(page.getContent()).title());
+        searchResponse.setSnippet(generateSnippet(page.getContent(), lemma.getLemma()));
+        return searchResponse;
     }
 
     private String generateSnippet(String content, String lemma){
@@ -253,5 +258,20 @@ public class SearchServiceImpl implements SearchService {
             exception.printStackTrace();
             return "";
         }
+    }
+
+    private Map<String, Object> generateErrorResponse(String errorMessage){
+        Map<String, Object> errorMap = new HashMap<>();
+        errorMap.put("result", false);
+        errorMap.put("error", errorMessage);
+        return errorMap;
+    }
+
+    private Map<String,Object> generateSuccessResponse(List<SearchResponse> result){
+        Map<String, Object> responseMap = new HashMap<>();
+        responseMap.put("result", true);
+        responseMap.put("count", result.size());
+        responseMap.put("data", result);
+        return responseMap;
     }
 }
