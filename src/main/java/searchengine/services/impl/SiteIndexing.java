@@ -1,4 +1,4 @@
-package searchengine.process;
+package searchengine.services.impl;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +16,6 @@ import searchengine.repository.IndexRepository;
 import searchengine.repository.LemmaRepository;
 import searchengine.repository.PageRepository;
 import searchengine.repository.SiteRepository;
-import searchengine.services.impl.IndexingPageServiceImpl;
 
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
@@ -56,18 +55,7 @@ public class SiteIndexing extends RecursiveAction{
             indexingRunning = true;
             for (Element element : elements) {
                 if (indexingRunning) {
-                    String pageUrl = element.absUrl("href");
-                    if (isCorrectLink(pageUrl)) {
-                        Indextor indextor = new Indextor(pageUrl, site);
-                        Page newPage = indextor.connectAndCreatePage();
-                        if (newPage != null) {
-                            if (checkDuplicatePage(newPage)) {
-                                pageRepository.save(newPage);
-                                new IndexingPageServiceImpl(siteRepository,pageRepository,lemmaRepository,indexRepository).indexingPages(pageUrl);
-                                site.setStatusTime(Timestamp.valueOf(LocalDateTime.now()));
-                            }
-                        }
-                    }
+                    startIndexingOfSite(element);
                 } else {
                     break;
                 }
@@ -78,7 +66,6 @@ public class SiteIndexing extends RecursiveAction{
                 site.setStatus(Status.FAILED);
                 site.setLastError("Индексация остановлена пользователем");
             }
-
             siteRepository.save(site);
 
         } catch (Exception exception) {
@@ -87,6 +74,22 @@ public class SiteIndexing extends RecursiveAction{
             siteRepository.save(site);
         }
     }
+
+    private void startIndexingOfSite(Element element){
+        String pageUrl = element.absUrl("href");
+        if (isCorrectLink(pageUrl)) {
+            PageCollector pageCollector = new PageCollector(pageUrl, site);
+            Page newPage = pageCollector.connectAndCreatePage();
+            if (newPage != null) {
+                if (checkDuplicatePage(newPage)) {
+                    pageRepository.save(newPage);
+                    new IndexingPageServiceImpl(siteRepository,pageRepository,lemmaRepository,indexRepository).indexingPages(pageUrl);
+                    site.setStatusTime(Timestamp.valueOf(LocalDateTime.now()));
+                }
+            }
+        }
+    }
+
     private boolean checkDuplicatePage(Page page) {
         try {
             Page copyPage = pageRepository.findByPath(page.getPath());

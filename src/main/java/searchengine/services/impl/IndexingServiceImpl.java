@@ -6,7 +6,6 @@ import org.springframework.stereotype.Service;
 import searchengine.config.SitesList;
 import searchengine.model.Site;
 import searchengine.model.Status;
-import searchengine.process.SiteIndexing;
 import searchengine.repository.IndexRepository;
 import searchengine.repository.LemmaRepository;
 import searchengine.repository.PageRepository;
@@ -47,26 +46,27 @@ public class IndexingServiceImpl implements IndexingService {
             List<searchengine.config.Site> sites = sitesList.getSites();
             ForkJoinPool pool = new ForkJoinPool();
             sites.stream().parallel().forEach(s -> {
-                Site site = new Site();
-                site.setName(s.getName());
-                site.setUrl(s.getUrl());
-                site.setStatus(Status.INDEXING);
-                site.setStatusTime(Timestamp.valueOf(LocalDateTime.now()));
-                siteRepository.save(site);
+                Site site = createNewSite(s);
                 SiteIndexing siteIndexing = new SiteIndexing(pageRepository, siteRepository, lemmaRepository,indexRepository,site);
                 siteIndexingsList.add(siteIndexing);
                 pool.invoke(siteIndexing);
             });
-            Map<String, Object> responseMap = new HashMap<>();
-            responseMap.put("result", true);
-            return responseMap;
+
+            return getSuccessResponse();
         }
         else {
-            Map<String, Object> errorMap = new HashMap<>();
-            errorMap.put("result", false);
-            errorMap.put("error", "Индексация уже запущена");
-            return errorMap;
+            return getErrorResponse("Индексация уже запущена");
         }
+    }
+
+    private Site createNewSite(searchengine.config.Site siteFromApplicationFile){
+        Site site = new Site();
+        site.setName(siteFromApplicationFile.getName());
+        site.setUrl(siteFromApplicationFile.getUrl());
+        site.setStatus(Status.INDEXING);
+        site.setStatusTime(Timestamp.valueOf(LocalDateTime.now()));
+        siteRepository.save(site);
+        return site;
     }
 
     public void truncateTables() {
@@ -79,15 +79,23 @@ public class IndexingServiceImpl implements IndexingService {
     public Map<String, Object> stopIndexing(){
         if (!siteIndexingsList.isEmpty()) {
             siteIndexingsList.stream().forEach(SiteIndexing::stopIndexing);
-            Map<String, Object> responseMap = new HashMap<>();
-            responseMap.put("result", true);
-            return responseMap;
+            return getSuccessResponse();
         } else {
-            Map<String, Object> errorMap = new HashMap<>();
-            errorMap.put("result", false);
-            errorMap.put("error", "Индексация не запущена");
-            return errorMap;
+            return getErrorResponse("Индексация не запущена");
         }
+    }
+
+    private Map<String,Object> getErrorResponse(String errorMessage){
+        Map<String, Object> errorMap = new HashMap<>();
+        errorMap.put("result", false);
+        errorMap.put("error", errorMessage);
+        return errorMap;
+    }
+
+    private Map<String,Object> getSuccessResponse(){
+        Map<String, Object> responseMap = new HashMap<>();
+        responseMap.put("result", true);
+        return responseMap;
     }
 }
 
